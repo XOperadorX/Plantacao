@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌽 Plantação de Milho – Simulador</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* ---------- RESET + VARIÁVEIS ---------- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2d7d3a;
+            --primary-light: #4caf50;
+            --primary-dark: #1b5e20;
+            --soil: #8d6e63;
+            --soil-light: #a1887f;
+            --bg: #f0f7e6;
+            --card-bg: #ffffff;
+            --text-dark: #2e3b2e;
+            --text-muted: #5d6d5d;
+            --shadow: 0 12px 32px rgba(0, 30, 0, 0.15);
+            --radius: 24px;
+            --transition: 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.2rem;
+            background-image:
+                radial-gradient(circle at 20% 30%, rgba(76, 175, 80, 0.06) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(139, 195, 74, 0.08) 0%, transparent 50%);
+        }
+
+        /* ---------- CARTÃO PRINCIPAL ---------- */
+        .card {
+            background: var(--card-bg);
+            max-width: 560px;
+            width: 100%;
+            padding: 1.8rem 1.6rem 1.6rem;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(2px);
+            transition: transform var(--transition);
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+        }
+
+        /* ---------- TOPO ---------- */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1.2rem;
+        }
+
+        .header h1 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            letter-spacing: -0.5px;
+        }
+
+        .header h1 i {
+            color: var(--primary);
+            margin-right: 4px;
+        }
+
+        .header .sub {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            background: var(--bg);
+            padding: 0.2rem 0.9rem;
+            border-radius: 40px;
+            font-weight: 500;
+        }
+
+        /* ---------- ESTATÍSTICAS ---------- */
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            background: var(--bg);
+            border-radius: 60px;
+            padding: 0.5rem 0.8rem;
+            margin-bottom: 1.4rem;
+            flex-wrap: wrap;
+            gap: 0.2rem;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-dark);
+            padding: 0.2rem 0.6rem;
+            border-radius: 40px;
+            transition: background var(--transition);
+        }
+
+        .stat-item i {
+            font-size: 1.1rem;
+            color: var(--primary);
+        }
+
+        .stat-item .num {
+            min-width: 1.6rem;
+            text-align: center;
+            background: white;
+            padding: 0 0.4rem;
+            border-radius: 30px;
+            font-size: 0.9rem;
+        }
+
+        .stat-item .label {
+            font-weight: 400;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+
+        /* ---------- TERRENO (GRADE 4x4) ---------- */
+        .field {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 1.4rem;
+            aspect-ratio: 1 / 1;
+        }
+
+        .plot {
+            background: var(--soil);
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.4rem;
+            cursor: pointer;
+            transition: all var(--transition);
+            box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.06);
+            position: relative;
+            min-height: 80px;
+            user-select: none;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .plot:hover {
+            transform: scale(1.03);
+            box-shadow: 0 6px 16px rgba(0, 30, 0, 0.15);
+            z-index: 2;
+        }
+
+        .plot:active {
+            transform: scale(0.94);
+        }
+
+        /* Diferentes tons de solo */
+        .plot.empty {
+            background: #8d6e63;
+        }
+        .plot.harvested {
+            background: #a1887f;
+        }
+        .plot:not(.empty):not(.harvested) {
+            background: #6d8f6d;
+        }
+
+        /* Etiqueta de estágio (pequena) */
+        .plot .stage-label {
+            position: absolute;
+            bottom: 3px;
+            font-size: 0.5rem;
+            background: rgba(0, 0, 0, 0.5);
+            color: #fff;
+            padding: 0 6px;
+            border-radius: 10px;
+            letter-spacing: 0.3px;
+            backdrop-filter: blur(4px);
+            white-space: nowrap;
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        /* Barra de progresso do crescimento */
+        .plot .progress-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 4px;
+            background: rgba(255, 215, 0, 0.7);
+            border-radius: 0 0 16px 16px;
+            transition: width 0.4s ease;
+            width: 0%;
+            pointer-events: none;
+        }
+
+        .plot .progress-bar.done {
+            background: #ffd700;
+            box-shadow: 0 0 8px #ffd700;
+        }
+
+        /* Emojis e ícones grandes */
+        .plot .plant-emoji {
+            line-height: 1;
+            transition: transform 0.5s ease;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+        }
+
+        /* Animações por estado */
+        .plot.growing .plant-emoji {
+            animation: sway 2.5s ease-in-out infinite;
+        }
+        .plot.mature .plant-emoji {
+            animation: glow 1.2s ease-in-out infinite alternate;
+        }
+        .plot.sprout .plant-emoji {
+            animation: pop 1s ease-out;
+        }
+        .plot.seed .plant-emoji {
+            animation: pulse 1.6s ease-in-out infinite;
+        }
+
+        @keyframes sway {
+            0%,
+            100% {
+                transform: rotate(-3deg) scale(1);
+            }
+            50% {
+                transform: rotate(3deg) scale(1.02);
+            }
+        }
+
+        @keyframes glow {
+            0% {
+                filter: drop-shadow(0 0 2px gold);
+                transform: scale(1);
+            }
+            100% {
+                filter: drop-shadow(0 0 16px #ffd700);
+                transform: scale(1.06);
+            }
+        }
+
+        @keyframes pop {
+            0% {
+                transform: scale(0);
+                opacity: 0;
+            }
+            60% {
+                transform: scale(1.2);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        @keyframes pulse {
+            0%,
+            100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(0.92);
+            }
+        }
+
+        /* ---------- BOTÕES DE AÇÃO ---------- */
+        .actions {
+            display: flex;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1.4rem;
+            border: none;
+            border-radius: 60px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            background: var(--bg);
+            color: var(--text-dark);
+            cursor: pointer;
+            transition: all var(--transition);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+            flex: 1 1 auto;
+            justify-content: center;
+        }
+
+        .btn i {
+            font-size: 1rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(45, 125, 58, 0.3);
+        }
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(45, 125, 58, 0.35);
+        }
+
+        .btn-secondary {
+            background: #42a5f5;
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(66, 165, 245, 0.25);
+        }
+        .btn-secondary:hover {
+            background: #1e88e5;
+            transform: translateY(-2px);
+        }
+
+        .btn-gold {
+            background: #f9a825;
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(249, 168, 37, 0.3);
+        }
+        .btn-gold:hover {
+            background: #f57f17;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .btn:active:not(:disabled) {
+            transform: scale(0.94) !important;
+        }
+
+        /* ---------- MENSAGEM / DICA ---------- */
+        .message {
+            background: var(--bg);
+            border-radius: 40px;
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            text-align: center;
+            min-height: 2.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: all 0.3s;
+            border: 1px solid rgba(0, 0, 0, 0.03);
+        }
+
+        .message .highlight {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .message i {
+            color: var(--primary-light);
+        }
+
+        /* ---------- TOAST (notificação) ---------- */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: rgba(30, 40, 30, 0.92);
+            backdrop-filter: blur(8px);
+            color: #fff;
+            padding: 0.7rem 2rem;
+            border-radius: 60px;
+            font-weight: 500;
+            font-size: 0.95rem;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+            opacity: 0;
+            transition: all 0.45s ease;
+            pointer-events: none;
+            z-index: 999;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* ---------- RESPONSIVO ---------- */
+        @media (max-width: 480px) {
+            .card {
+                padding: 1.2rem 1rem 1.2rem;
+            }
+            .header h1 {
+                font-size: 1.2rem;
+            }
+            .stats {
+                gap: 0.1rem;
+                padding: 0.3rem 0.4rem;
+            }
+            .stat-item {
+                font-size: 0.75rem;
+                padding: 0.1rem 0.4rem;
+            }
+            .stat-item i {
+                font-size: 0.9rem;
+            }
+            .field {
+                gap: 6px;
+            }
+            .plot {
+                font-size: 1.8rem;
+                min-height: 64px;
+                border-radius: 12px;
+            }
+            .plot .stage-label {
+                font-size: 0.4rem;
+                bottom: 1px;
+            }
+            .btn {
+                font-size: 0.75rem;
+                padding: 0.4rem 1rem;
+                gap: 0.3rem;
+            }
+            .message {
+                font-size: 0.75rem;
+                padding: 0.4rem 0.8rem;
+                min-height: 2.4rem;
+            }
+            .toast {
+                font-size: 0.8rem;
+                padding: 0.5rem 1.2rem;
+                bottom: 1.2rem;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .plot {
+                font-size: 1.4rem;
+                min-height: 52px;
+            }
+            .stats .label {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ========== CARTÃO ========== -->
+    <div class="card">
+
+        <!-- Topo -->
+        <div class="header">
+            <h1><i class="fas fa-seedling"></i> Milharal</h1>
+            <span class="sub"><i class="far fa-clock"></i> simulação</span>
+        </div>
+
+        <!-- Estatísticas -->
+        <div class="stats">
+            <div class="stat-item">
+                <i class="fas fa-seedling"></i>
+                <span class="label">Sementes</span>
+                <span class="num" id="seedCount">12</span>
+            </div>
+            <div class="stat-item">
+                <i class="fas fa-trowel"></i>
+                <span class="label">Plantados</span>
+                <span class="num" id="plantedCount">0</span>
+            </div>
+            <div class="stat-item">
+                <i class="fas fa-corn"></i>
+                <span class="label">Colhidos</span>
+                <span class="num" id="harvestCount">0</span>
+            </div>
+        </div>
+
+        <!-- Terreno 4x4 -->
+        <div class="field" id="field"></div>
+
+        <!-- Ações -->
+        <div class="actions">
+            <button class="btn btn-primary" id="btnPlant"><i class="fas fa-seedling"></i> Plantar</button>
+            <button class="btn btn-secondary" id="btnWater"><i class="fas fa-tint"></i> Regar</button>
+            <button class="btn btn-gold" id="btnHarvestAll"><i class="fas fa-corn"></i> Colher tudo</button>
+        </div>
+
+        <!-- Mensagem / dica -->
+        <div class="message" id="message">
+            <i class="fas fa-hand-pointer"></i>
+            Clique em um <span class="highlight">canteiro vazio</span> para plantar.
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        (function() {
+            'use strict';
+
+            // ---------- CONFIG ----------
+            const COLS = 4;
+            const ROWS = 4;
+            const TOTAL = COLS * ROWS;
+            const GROWTH_INTERVAL = 1200; // ms entre cada crescimento automático
+            const WATER_BOOST = 30; // % de progresso ganho ao regar
+            const BASE_GROWTH = 8; // % de progresso ganho por tick
+
+            // Estágios (índices)
+            const STAGES = {
+                EMPTY: 'empty',
+                SEED: 'seed',
+                SPROUT: 'sprout',
+                SEEDLING: 'seedling',
+                GROWING: 'growing',
+                MATURE: 'mature',
+                HARVESTED: 'harvested'
+            };
+
+            // Mapeamento estágio → emoji + label
+            const STAGE_META = {
+                [STAGES.EMPTY]: { emoji: '', label: 'vazio' },
+                [STAGES.SEED]: { emoji: '🌰', label: 'semente' },
+                [STAGES.SPROUT]: { emoji: '🌱', label: 'brotando' },
+                [STAGES.SEEDLING]: { emoji: '🌿', label: 'muda' },
+                [STAGES.GROWING]: { emoji: '🌾', label: 'crescendo' },
+                [STAGES.MATURE]: { emoji: '🌽', label: 'maduro!' },
+                [STAGES.HARVESTED]: { emoji: '🟫', label: 'colhido' }
+            };
+
+            // Ordem dos estágios para progressão
+            const STAGE_ORDER = [
+                STAGES.EMPTY,
+                STAGES.SEED,
+                STAGES.SPROUT,
+                STAGES.SEEDLING,
+                STAGES.GROWING,
+                STAGES.MATURE,
+                STAGES.HARVESTED
+            ];
+
+            // ---------- ESTADO ----------
+            let plots = [];
+            let seeds = 12;
+            let harvested = 0;
+            let planted = 0;
+            let growthTimer = null;
+            let toastTimeout = null;
+
+            // DOM refs
+            const fieldEl = document.getElementById('field');
+            const seedCountEl = document.getElementById('seedCount');
+            const plantedCountEl = document.getElementById('plantedCount');
+            const harvestCountEl = document.getElementById('harvestCount');
+            const messageEl = document.getElementById('message');
+            const toastEl = document.getElementById('toast');
+
+            const btnPlant = document.getElementById('btnPlant');
+            const btnWater = document.getElementById('btnWater');
+            const btnHarvestAll = document.getElementById('btnHarvestAll');
+
+            // ---------- INICIALIZAR ----------
+            function initPlots() {
+                plots = [];
+                for (let i = 0; i < TOTAL; i++) {
+                    plots.push({
+                        id: i,
+                        stage: STAGES.EMPTY,
+                        progress: 0, // 0-100
+                        row: Math.floor(i / COLS),
+                        col: i % COLS
+                    });
+                }
+            }
+
+            // ---------- RENDER ----------
+            function render() {
+                // Atualiza estatísticas
+                seedCountEl.textContent = seeds;
+                plantedCountEl.textContent = planted;
+                harvestCountEl.textContent = harvested;
+
+                // Renderiza cada parcela
+                let html = '';
+                for (let i = 0; i < plots.length; i++) {
+                    const p = plots[i];
+                    const meta = STAGE_META[p.stage] || { emoji: '❓', label: '?' };
+                    const isHarvested = p.stage === STAGES.HARVESTED;
+                    const isEmpty = p.stage === STAGES.EMPTY;
+                    const isMature = p.stage === STAGES.MATURE;
+
+                    // Classes CSS
+                    let classes = 'plot';
+                    classes += ' ' + p.stage;
+                    if (isHarvested) classes += ' harvested';
+                    if (isEmpty) classes += ' empty';
+                    if (isMature) classes += ' mature';
+                    if (p.stage === STAGES.SPROUT) classes += ' sprout';
+                    if (p.stage === STAGES.SEED) classes += ' seed';
+                    if (p.stage === STAGES.GROWING) classes += ' growing';
+
+                    // Barra de progresso (exceto empty e harvested)
+                    let progressBar = '';
+                    if (!isEmpty && !isHarvested) {
+                        const width = Math.min(p.progress, 100);
+                        const doneClass = width >= 100 ? 'done' : '';
+                        progressBar = `<div class="progress-bar ${doneClass}" style="width:${width}%"></div>`;
+                    }
+
+                    // Emoji
+                    let emoji = meta.emoji;
+                    // Se estiver vazio, mostra um ícone de "+" sutil
+                    if (isEmpty) {
+                        emoji = '<span style="opacity:0.25;font-size:0.6em;">+</span>';
+                    }
+                    // Se colhido, mostra solo
+                    if (isHarvested) {
+                        emoji = '🟫';
+                    }
+
+                    const label = meta.label;
+
+                    html += `
+                        <div class="${classes}" data-id="${p.id}">
+                            <span class="plant-emoji">${emoji}</span>
+                            ${progressBar}
+                            <span class="stage-label">${label}</span>
+                        </div>
+                    `;
+                }
+                fieldEl.innerHTML = html;
+
+                // Atualiza mensagem de dica
+                updateMessage();
+
+                // Atualiza estado dos botões
+                btnPlant.disabled = (seeds <= 0);
+            }
+
+            // ---------- MENSAGEM DINÂMICA ----------
+            function updateMessage() {
+                const emptyCount = plots.filter(p => p.stage === STAGES.EMPTY).length;
+                const matureCount = plots.filter(p => p.stage === STAGES.MATURE).length;
+                const hasGrowing = plots.some(p => p.stage !== STAGES.EMPTY && p.stage !== STAGES.HARVESTED && p.stage !==
+                STAGES.MATURE);
+
+                if (seeds <= 0 && emptyCount > 0) {
+                    setMessage('😅 <span class="highlight">Sem sementes!</span> Plante mais para conseguir mais.');
+                } else if (matureCount > 0) {
+                    setMessage(`🌽 <span class="highlight">${matureCount}</span> milho(s) maduro(s)! Clique para colher.`);
+                } else if (hasGrowing) {
+                    setMessage('💧 <span class="highlight">Regue</span> as plantas para acelerar o crescimento!');
+                } else if (emptyCount > 0 && seeds > 0) {
+                    setMessage('🌱 Clique em um <span class="highlight">canteiro vazio</span> para plantar.');
+                } else if (emptyCount === 0 && seeds > 0) {
+                    setMessage('🧑‍🌾 Terreno cheio! Espere crescer ou colha os maduros.');
+                } else {
+                    setMessage('🌾 Acompanhe o crescimento do seu milharal!');
+                }
+            }
+
+            function setMessage(html) {
+                messageEl.innerHTML = html;
+            }
+
+            // ---------- TOAST ----------
+            function showToast(text, duration = 2200) {
+                if (toastTimeout) {
+                    clearTimeout(toastTimeout);
+                    toastEl.classList.remove('show');
+                }
+                toastEl.textContent = text;
+                toastEl.classList.add('show');
+                toastTimeout = setTimeout(() => {
+                    toastEl.classList.remove('show');
+                    toastTimeout = null;
+                }, duration);
+            }
+
+            // ---------- LÓGICA DE CRESCIMENTO ----------
+            function growPlot(plot) {
+                if (plot.stage === STAGES.EMPTY || plot.stage === STAGES.HARVESTED || plot.stage === STAGES.MATURE) {
+                    return false;
+                }
+
+                // Aumenta progresso
+                plot.progress = Math.min(plot.progress + BASE_GROWTH, 100);
+
+                // Se progresso >= 100, avança para o próximo estágio
+                if (plot.progress >= 100) {
+                    const currentIndex = STAGE_ORDER.indexOf(plot.stage);
+                    const nextIndex = currentIndex + 1;
+                    if (nextIndex < STAGE_ORDER.length) {
+                        const nextStage = STAGE_ORDER[nextIndex];
+                        plot.stage = nextStage;
+                        plot.progress = 0;
+
+                        // Se chegou a maduro, notifica
+                        if (nextStage === STAGES.MATURE) {
+                            showToast(`🌽 Milho maduro na parcela ${plot.id + 1}!`, 1800);
+                        }
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            // Crescimento automático de todas as plantas
+            function autoGrow() {
+                let anyGrew = false;
+                for (const plot of plots) {
+                    if (plot.stage !== STAGES.EMPTY &&
+                        plot.stage !== STAGES.HARVESTED &&
+                        plot.stage !== STAGES.MATURE) {
+                        const grew = growPlot(plot);
+                        if (grew) anyGrew = true;
+                    }
+                }
+                if (anyGrew) {
+                    render();
+                } else {
+                    // Apenas atualiza a barra de progresso
+                    render();
+                }
+            }
+
+            // ---------- AÇÕES DO USUÁRIO ----------
+
+            // Plantar em uma parcela específica
+            function plantAt(plotId) {
+                const plot = plots[plotId];
+                if (!plot) return false;
+                if (plot.stage !== STAGES.EMPTY) {
+                    showToast('⚠️ Este canteiro já está ocupado.', 1400);
+                    return false;
+                }
+                if (seeds <= 0) {
+                    showToast('😅 Você não tem sementes!', 1400);
+                    return false;
+                }
+
+                // Consome semente
+                seeds--;
+                plot.stage = STAGES.SEED;
+                plot.progress = 0;
+                planted++;
+                showToast(`🌱 Semente plantada na parcela ${plotId + 1}!`, 1400);
+                render();
+                return true;
+            }
+
+            // Regar uma parcela (acelera crescimento)
+            function waterAt(plotId) {
+                const plot = plots[plotId];
+                if (!plot) return false;
+                if (plot.stage === STAGES.EMPTY || plot.stage === STAGES.HARVESTED || plot.stage === STAGES.MATURE) {
+                    showToast('💧 Não há nada para regar aqui.', 1200);
+                    return false;
+                }
+
+                // Aplica boost
+                plot.progress = Math.min(plot.progress + WATER_BOOST, 100);
+                if (plot.progress >= 100) {
+                    // Força a transição de estágio
+                    const currentIndex = STAGE_ORDER.indexOf(plot.stage);
+                    const nextIndex = currentIndex + 1;
+                    if (nextIndex < STAGE_ORDER.length) {
+                        const nextStage = STAGE_ORDER[nextIndex];
+                        plot.stage = nextStage;
+                        plot.progress = 0;
+                        if (nextStage === STAGES.MATURE) {
+                            showToast(`🌽 Milho amadureceu na parcela ${plotId + 1}!`, 1800);
+                        } else {
+                            showToast(`💧 Crescimento acelerado! Agora: ${STAGE_META[nextStage].label}`, 1400);
+                        }
+                    } else {
+                        // Se já está no último estágio, mantém
+                        plot.progress = 100;
+                    }
+                } else {
+                    showToast(`💧 Regado! Progresso: ${Math.round(plot.progress)}%`, 1200);
+                }
+                render();
+                return true;
+            }
+
+            // Colher uma parcela madura
+            function harvestAt(plotId) {
+                const plot = plots[plotId];
+                if (!plot) return false;
+                if (plot.stage !== STAGES.MATURE) {
+                    showToast('🌽 Só é possível colher milho maduro!', 1200);
+                    return false;
+                }
+
+                plot.stage = STAGES.HARVESTED;
+                plot.progress = 0;
+                harvested++;
+                // Ganha sementes (2 por colheita)
+                seeds += 2;
+                showToast(`🌽 Colheu 1 milho! Ganhou 2 sementes.`, 1600);
+                render();
+                return true;
+            }
+
+            // Colher todos os maduros
+            function harvestAll() {
+                let count = 0;
+                for (const plot of plots) {
+                    if (plot.stage === STAGES.MATURE) {
+                        plot.stage = STAGES.HARVESTED;
+                        plot.progress = 0;
+                        harvested++;
+                        seeds += 2;
+                        count++;
+                    }
+                }
+                if (count > 0) {
+                    showToast(`🌽 Colheu ${count} milho(s)! Ganhou ${count * 2} sementes.`, 2000);
+                } else {
+                    showToast('🌽 Nenhum milho maduro para colher.', 1200);
+                }
+                render();
+                return count;
+            }
+
+            // ---------- EVENTOS DE CLIQUE NO TERRENO ----------
+            fieldEl.addEventListener('click', function(e) {
+                const plotDiv = e.target.closest('.plot');
+                if (!plotDiv) return;
+                const id = parseInt(plotDiv.dataset.id, 10);
+                if (isNaN(id)) return;
+
+                const plot = plots[id];
+                if (!plot) return;
+
+                // Comportamento baseado no estágio
+                if (plot.stage === STAGES.EMPTY) {
+                    plantAt(id);
+                } else if (plot.stage === STAGES.MATURE) {
+                    harvestAt(id);
+                } else if (plot.stage !== STAGES.HARVESTED) {
+                    // Qualquer outro estágio ativo → regar
+                    waterAt(id);
+                } else {
+                    showToast('🟫 Este canteiro já foi colhido.', 1200);
+                }
+            });
+
+            // ---------- BOTÕES GLOBAIS ----------
+            btnPlant.addEventListener('click', function() {
+                // Encontra o primeiro canteiro vazio
+                const emptyIndex = plots.findIndex(p => p.stage === STAGES.EMPTY);
+                if (emptyIndex === -1) {
+                    showToast('⚠️ Todos os canteiros estão ocupados!', 1400);
+                    return;
+                }
+                plantAt(emptyIndex);
+            });
+
+            btnWater.addEventListener('click', function() {
+                // Regar todos os canteiros que não estão vazios, colhidos ou maduros
+                let watered = 0;
+                for (const plot of plots) {
+                    if (plot.stage !== STAGES.EMPTY &&
+                        plot.stage !== STAGES.HARVESTED &&
+                        plot.stage !== STAGES.MATURE) {
+                        // Aplica boost direto
+                        plot.progress = Math.min(plot.progress + WATER_BOOST, 100);
+                        if (plot.progress >= 100) {
+                            const currentIndex = STAGE_ORDER.indexOf(plot.stage);
+                            const nextIndex = currentIndex + 1;
+                            if (nextIndex < STAGE_ORDER.length) {
+                                const nextStage = STAGE_ORDER[nextIndex];
+                                plot.stage = nextStage;
+                                plot.progress = 0;
+                            } else {
+                                plot.progress = 100;
+                            }
+                        }
+                        watered++;
+                    }
+                }
+                if (watered > 0) {
+                    showToast(`💧 Regou ${watered} canteiro(s)!`, 1500);
+                    render();
+                    // Verifica se algum amadureceu
+                    const mature = plots.filter(p => p.stage === STAGES.MATURE).length;
+                    if (mature > 0) {
+                        setTimeout(() => {
+                            showToast(`🌽 ${mature} milho(s) amadureceu(ram)!`, 1600);
+                        }, 400);
+                    }
+                } else {
+                    showToast('💧 Nenhum canteiro precisa de água agora.', 1200);
+                }
+            });
+
+            btnHarvestAll.addEventListener('click', function() {
+                harvestAll();
+            });
+
+            // ---------- INICIAR SIMULAÇÃO ----------
+            function startSimulation() {
+                if (growthTimer) {
+                    clearInterval(growthTimer);
+                }
+                growthTimer = setInterval(autoGrow, GROWTH_INTERVAL);
+            }
+
+            // ---------- RESET (opcional, para reiniciar) ----------
+            // Poderia adicionar um botão de reset, mas não é necessário agora.
+
+            // ---------- INICIALIZAR ----------
+            initPlots();
+            render();
+            startSimulation();
+
+            // Mensagem inicial
+            setTimeout(() => {
+                showToast('🌽 Bem-vindo ao Milharal! Plante, regue e colha!', 2800);
+            }, 400);
+
+            // ---------- CLEANUP (se a página for fechada) ----------
+            window.addEventListener('beforeunload', function() {
+                if (growthTimer) {
+                    clearInterval(growthTimer);
+                }
+            });
+
+            // ---------- DEBUG (opcional) ----------
+            console.log('🌽 Simulador de plantação de milho carregado!');
+            console.log(`🧑‍🌾 ${TOTAL} canteiros, ${seeds} sementes iniciais.`);
+
+        })();
+    </script>
+
+</body>
+
+</html>
